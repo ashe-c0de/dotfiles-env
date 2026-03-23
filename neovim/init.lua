@@ -1,304 +1,203 @@
--- leader
+-- ========================================================================== --
+--                                基础设置 (Basic)                             --
+-- ========================================================================== --
+
+-- Leader 键必须最先定义
 vim.g.mapleader = " "
 
--- basic options
+-- 核心性能优化：解决 Windows 下 MkDocs 监听延迟和文件锁竞争
+vim.opt.backupcopy = "yes"    -- 强制覆盖原文件，保持文件句柄不变，方便热重载
+vim.opt.shada = "'100,<50,s10,h" -- 减少退出和保存时 shada 文件的写入开销
+vim.opt.swapfile = false      -- 禁用交换文件（现代 SSD 不需要，且减少 IO）
+vim.opt.timeoutlen = 500      -- 缩短 Leader 键等待时间
+
+-- UI 设置
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.termguicolors = true
+vim.opt.clipboard = "unnamedplus" -- 使用系统剪贴板
 
--- 使用系统剪贴板
-vim.opt.clipboard = "unnamedplus"
+-- ========================================================================== --
+--                             快捷键映射 (Keymaps)                            --
+-- ========================================================================== --
 
--- 文件搜索
-vim.keymap.set("n", "<leader>f", function()
-  require("telescope.builtin").find_files()
-end, { desc = "Find Files" })
+-- 安全保存：规避 'buftype' 错误
+vim.keymap.set('n', '<leader>w', function()
+    if vim.bo.buftype == "" and vim.bo.modifiable then
+        vim.cmd("write")
+    else
+        vim.api.nvim_echo({{"当前窗口不可保存", "WarningMsg"}}, false, {})
+    end
+end, { desc = "Save File" })
 
--- 全局搜索
-vim.keymap.set("n", "<leader>g", function()
-  require("telescope.builtin").live_grep()
-end)
+-- ========================================================================== --
+--                           插件管理 (Lazy.nvim)                             --
+-- ========================================================================== --
 
--- 文件树
-vim.keymap.set("n", "<leader>e", "<cmd>NvimTreeToggle<CR>")
-
--- 保存
-vim.keymap.set("n", "<leader>w", "<cmd>w<CR>")
-
--- lazy.nvim install
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-
 if not vim.loop.fs_stat(lazypath) then
   vim.fn.system({
-    "git","clone","--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable",
-    lazypath
+    "git", "clone", "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath
   })
 end
-
 vim.opt.rtp:prepend(lazypath)
 
 require("lazy").setup({
 
   ----------------------
-  -- Treesitter (适配 2026 最新 v1.x 版本)
+  -- Treesitter (优化后的 1.x 配置)
   ----------------------
   {
     "nvim-treesitter/nvim-treesitter",
     build = ":TSUpdate",
-    lazy = false,
-  
     config = function()
-      -- 基础 setup（新版本其实可选）
-      require("nvim-treesitter").setup({
-        install_dir = vim.fn.stdpath("data") .. "/site",
-      })
-  
-      -- 安装语言
-      require("nvim-treesitter").install({
-        "rust",
-        "lua",
-        "toml",
-        "markdown",
-        "markdown_inline",
-        "go",
-      })
-  
-      -- Treesitter + 大文件保护
-      vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "lua", "go", "rust", "markdown", "toml" },
-        callback = function()
-          -- 文件路径
-          local buf = vim.api.nvim_get_current_buf()
-          local filename = vim.api.nvim_buf_get_name(buf)
-  
-          -- 获取文件大小
-          local ok, stats = pcall(vim.loop.fs_stat, filename)
-  
-          -- 100KB 阈值（你可以改）
-          local max_filesize = 100 * 1024
-  
-          if ok and stats and stats.size > max_filesize then
-            return -- 大文件不启用 treesitter
-          end
-  
-          -- 启用 Treesitter
-          pcall(vim.treesitter.start)
-        end,
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = { "rust", "go", "lua", "markdown", "markdown_inline", "toml" },
+        highlight = {
+          enable = true,
+          -- 官方推荐的高性能大文件禁用方案
+          disable = function(lang, buf)
+            local max_filesize = 100 * 1024 -- 100 KB
+            local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
+            if ok and stats and stats.size > max_filesize then return true end
+          end,
+        },
       })
     end,
   },
 
   ----------------------
-  -- Completion
+  -- Completion (补全)
   ----------------------
   {
     "hrsh7th/nvim-cmp",
     dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-      "hrsh7th/cmp-buffer",
-      "hrsh7th/cmp-path",
-      "saadparwaiz1/cmp_luasnip",
-      "L3MON4D3/LuaSnip",
+      "hrsh7th/cmp-nvim-lsp", "hrsh7th/cmp-buffer", "hrsh7th/cmp-path",
+      "saadparwaiz1/cmp_luasnip", "L3MON4D3/LuaSnip",
     },
     config = function()
       local cmp = require("cmp")
-
       cmp.setup({
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"] = cmp.mapping.confirm({ select = true }),
         }),
-
         sources = cmp.config.sources({
-          { name = "nvim_lsp" },
-          { name = "buffer" },
-          { name = "path" },
+          { name = "nvim_lsp" }, { name = "buffer" }, { name = "path" },
         }),
       })
     end,
   },
 
   ----------------------
-  -- Rust tools
+  -- LSP & Languages
   ----------------------
   {
-    "mrcjkb/rustaceanvim",
-    version = "^4",
-    ft = { "rust" },
-  },
-
-  ----------------------
-  -- crates.nvim
-  ----------------------
-  {
-    "saecki/crates.nvim",
-    ft = { "toml" },
+    "neovim/nvim-lspconfig",
     config = function()
-      require("crates").setup()
+      local lspconfig = require("lspconfig")
+      local cap = require("cmp_nvim_lsp").default_capabilities()
+      
+      -- Go 语言服务器
+      lspconfig.gopls.setup({ capabilities = cap })
 
-      require("cmp").setup.buffer({
-        sources = { { name = "crates" } }
-      })
+      -- 快捷键
+      local opts = { noremap = true, silent = true }
+      vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+      vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+      vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
+      vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts)
     end,
   },
 
+  { "mrcjkb/rustaceanvim", version = "^4", ft = { "rust" } },
+
   ----------------------
-  -- Telescope
+  -- 格式化 (Conform.nvim) - 已改为手动触发
   ----------------------
   {
-    "nvim-telescope/telescope.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim"
+    "stevearc/conform.nvim",
+    keys = {
+      {
+        "<leader>fl", -- 你之前的快捷键
+        function()
+          require("conform").format({ async = true, lsp_fallback = true })
+        end,
+        mode = "n",
+        desc = "Format buffer",
+      },
     },
-    config = function()
-      local builtin = require("telescope.builtin")
-
-      vim.keymap.set("n","<leader>ff",builtin.find_files)
-      vim.keymap.set("n","<leader>fg",builtin.live_grep)
-      vim.keymap.set("n","<leader>fb",builtin.buffers)
-      vim.keymap.set("n","<leader>fh",builtin.help_tags)
-    end
+    opts = {
+      formatters_by_ft = {
+        lua = { "stylua" },
+        rust = { "rustfmt" },
+        go = { "goimports", "gofmt" },
+      },
+      format_on_save = nil, -- 彻底禁用自动保存格式化，消除延迟
+    },
   },
 
   ----------------------
-  -- Neo-tree
+  -- 文件树 (Neo-tree)
   ----------------------
   {
     "nvim-neo-tree/neo-tree.nvim",
     branch = "v3.x",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-tree/nvim-web-devicons",
-      "MunifTanjim/nui.nvim",
-    },
+    dependencies = { "nvim-lua/plenary.nvim", "nvim-tree/nvim-web-devicons", "MunifTanjim/nui.nvim" },
     config = function()
       require("neo-tree").setup({
         close_if_last_window = true,
-
-        window = {
-          mappings = {
-            ["<space>"] = "none",
-            ["<cr>"] = "open",
-            ["o"] = "open",
-            ["s"] = "open_split",
-            ["v"] = "open_vsplit",
-            ["a"] = "add",
-            ["d"] = "delete",
-            ["r"] = "rename",
-          }
-        }
+        window = { mappings = { ["<space>"] = "none" } }
       })
+      vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle<CR>")
+    end,
+  },
 
-      vim.keymap.set("n","<leader>e","<cmd>Neotree toggle<CR>")
+  ----------------------
+  -- 搜索 & 项目管理
+  ----------------------
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      local builtin = require("telescope.builtin")
+      vim.keymap.set("n", "<leader>ff", builtin.find_files)
+      vim.keymap.set("n", "<leader>fg", builtin.live_grep)
     end
   },
 
-  ----------------------
-  -- 配色方案 (Colorscheme)
-  ----------------------
   {
-    "catppuccin/nvim",
-    name = "catppuccin",
-    priority = 1000, -- 确保主题先加载
+    "ahmedkhalf/project.nvim",
     config = function()
-      vim.cmd.colorscheme("catppuccin-mocha") -- 推荐 mocha 暗色调
+      require("project_nvim").setup({
+        detection_methods = { "pattern" },
+        patterns = { ".git", "go.mod", "Cargo.toml" },
+      })
+      require("telescope").load_extension("projects")
+      vim.keymap.set("n", "<leader>fp", "<cmd>Telescope projects<CR>")
     end,
   },
+
+  ----------------------
+  -- UI & 主题
+  ----------------------
+  { "catppuccin/nvim", name = "catppuccin", priority = 1000, config = function() vim.cmd.colorscheme("catppuccin-mocha") end },
   
-  ----------------------
-  -- UI增强
-  ----------------------
   {
-  "folke/noice.nvim",
-  event = "VeryLazy",
-  dependencies = {
-    "MunifTanjim/nui.nvim",
-    "rcarriga/nvim-notify", -- 漂亮的右上角通知弹窗
+    "folke/noice.nvim",
+    event = "VeryLazy",
+    dependencies = { "MunifTanjim/nui.nvim", "rcarriga/nvim-notify" },
+    config = function()
+      require("noice").setup({ lsp = { override = { ["cmp.entry.get_documentation"] = true } }, presets = { command_palette = true } })
+    end,
   },
-  config = function()
-    require("noice").setup({
-      lsp = {
-        override = {
-          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
-          ["vim.lsp.util.styled_parts"] = true,
-          ["cmp.entry.get_documentation"] = true,
-        },
-      },
-      presets = {
-        bottom_search = true, -- 搜索栏在底部
-        command_palette = true, -- 命令输入框在中间（像 Spotlight）
-        long_message_to_split = true,
-      },
-    })
-  end,
-},
 
-----------------------
--- 语法自动格式化
-----------------------
-{
-  "stevearc/conform.nvim",
-  opts = {
-    formatters_by_ft = {
-      lua = { "stylua" },
-      rust = { "rustfmt" },
-    },
-    format_on_save = { timeout_ms = 500, lsp_fallback = true },
+  {
+    'nvim-lualine/lualine.nvim',
+    config = function()
+      require('lualine').setup({ options = { theme = 'auto' }, sections = { lualine_a = { 'mode' } } })
+    end
   },
-},
-
-----------------------
--- 工作区 / 项目管理
-----------------------
-{
-  "ahmedkhalf/project.nvim",
-  config = function()
-    require("project_nvim").setup({
-      detection_methods = { "pattern" },
-
-      patterns = {
-        ".git",
-        "go.mod",
-        "Cargo.toml",
-        "pom.xml",
-      },
-	  -- 不符合patterns的直接不被视为project dir
-      manual_mode = false,
-    })
-
-    -- Telescope 集成
-    require("telescope").load_extension("projects")
-
-    -- 最近项目
-    vim.keymap.set("n", "<leader>fp", "<cmd>Telescope projects<CR>", { desc = "Projects" })
-  end,
-},
-
-----------------------
--- LSP自动导包
-----------------------
-{
-  "neovim/nvim-lspconfig",
-  config = function()
-    local lspconfig = require("lspconfig")
-    local capabilities = require("cmp_nvim_lsp").default_capabilities()
-
-    lspconfig.gopls.setup({
-      capabilities = capabilities,
-    })
-
-    -- 跳转到定义
-    vim.keymap.set("n", "gd", vim.lsp.buf.definition)
-	-- 查找所有引用
-    vim.keymap.set("n", "gr", vim.lsp.buf.references)
-	-- 查看文档（像 IDE 悬浮提示）
-    vim.keymap.set("n", "K", vim.lsp.buf.hover)
-
-    -- 自动导包用这个
-    vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action)
-  end,
-},
 
 })
