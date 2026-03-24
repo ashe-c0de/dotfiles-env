@@ -240,36 +240,6 @@ require("lazy").setup({
   },
 
   ----------------------
-  -- Terminal (ToggleTerm)
-  ----------------------
-  {
-    "akinsho/toggleterm.nvim",
-    version = "*",
-    config = function()
-      require("toggleterm").setup({
-        size = 20,
-        open_mapping = [[<leader>t]], -- 使用 Space + t 开启/关闭
-        hide_numbers = true,
-        shade_terminals = false,
-        direction = 'float', -- 浮窗模式，也可以选 'horizontal' 或 'vertical'
-        close_on_exit = true,
-        float_opts = {
-          border = 'curved',
-          winblend = 3,
-        },
-      })
-
-      -- 终端模式下的便捷映射
-      function _G.set_terminal_keymaps()
-        local opts = {buffer = 0}
-        vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
-        vim.keymap.set('t', '<leader>t', [[<C-\><C-n><cmd>ToggleTerm<CR>]], opts)
-      end
-      vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
-    end,
-  },
-
-  ----------------------
   -- everforest theme
   ----------------------
   {
