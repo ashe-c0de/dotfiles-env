@@ -37,6 +37,14 @@ vim.keymap.set('n', '<leader>w', function()
     end
 end, { desc = "Save File" })
 
+-- q关闭quickfix 窗口
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "qf" },
+  callback = function()
+    vim.keymap.set("n", "q", "<cmd>close<CR>", { buffer = true })
+  end,
+})
+
 -- ==========================================================================
 --                             插件管理 (Lazy.nvim)
 -- ==========================================================================
