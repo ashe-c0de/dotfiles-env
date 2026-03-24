@@ -1,3 +1,9 @@
+--[[
+    这里是多行注释
+    可以包含任意内容
+    甚至可以跨越多行
+]]
+
 -- ==========================================================================
 --                                基础设置 (Basic)
 -- ==========================================================================
@@ -9,6 +15,9 @@ vim.opt.backupcopy = "yes"
 vim.opt.shada = "'100,<50,s10,h"
 vim.opt.swapfile = false
 vim.opt.timeoutlen = 500
+
+-- 禁用 Ctrl+LeftMouse 触发 Tag 跳转
+vim.keymap.set("n", "<C-LeftMouse>", "<Nop>", { noremap = true, silent = true })
 
 -- UI
 vim.opt.number = true
@@ -29,7 +38,7 @@ vim.keymap.set('n', '<leader>w', function()
 end, { desc = "Save File" })
 
 -- ==========================================================================
---                           插件管理 (Lazy.nvim)
+--                             插件管理 (Lazy.nvim)
 -- ==========================================================================
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -61,6 +70,7 @@ require("lazy").setup({
             if ok and stats and stats.size > max_filesize then return true end
           end,
         },
+		indent = { enable = true },
       })
     end,
   },
@@ -94,7 +104,7 @@ require("lazy").setup({
   },
 
   ----------------------
-  -- LSP
+  -- LSP code-action
   ----------------------
   {
     "neovim/nvim-lspconfig",
@@ -102,13 +112,31 @@ require("lazy").setup({
       local lspconfig = require("lspconfig")
       local cap = require("cmp_nvim_lsp").default_capabilities()
 
-      lspconfig.gopls.setup({ capabilities = cap })
+      lspconfig.gopls.setup({
+        capabilities = cap,
+        settings = {
+          gopls = {
+            completeUnimported = true,
+            analyses = {
+              unusedparams = true,
+              shadow = true,
+            },
+            staticcheck = true,
+            usePlaceholders = true,
+            directoryFilters = { "-.git", "-.vscode", "-.idea", "-node_modules" },
+            semanticTokens = true,
+          },
+        },
+      })
 
+      -- 快捷键设置
       local opts = { noremap = true, silent = true }
       vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
       vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
       vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
       vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts)
+      -- 重命名快捷键
+      vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
     end,
   },
 
@@ -119,23 +147,31 @@ require("lazy").setup({
   ----------------------
   {
     "stevearc/conform.nvim",
+    -- 确保在打开文件时立即加载
+    event = { "BufWritePre" }, 
+    cmd = { "ConformInfo" },
+    opts = {
+      -- 1. 定义格式化器映射
+      formatters_by_ft = {
+        go = { "goimports", "gofmt" },
+        rust = { "rustfmt" },
+        lua = { "stylua" },
+      },
+      -- 2. 设置格式化参数
+      default_format_opts = {
+        lsp_format = "fallback", -- 如果工具不可用，才使用 LSP
+      },
+    },
+    -- 4. 快捷键映射
     keys = {
       {
         "<leader>fl",
         function()
-          require("conform").format({ async = true, lsp_fallback = true })
+          require("conform").format({ async = false, lsp_format = "fallback" })
         end,
         mode = "n",
-        desc = "Format buffer",
+        desc = "Format buffer (with GoImports)",
       },
-    },
-    opts = {
-      formatters_by_ft = {
-        lua = { "stylua" },
-        rust = { "rustfmt" },
-        go = { "goimports", "gofmt" },
-      },
-      format_on_save = nil,
     },
   },
 
@@ -196,37 +232,54 @@ require("lazy").setup({
   },
 
   ----------------------
-  -- 🌙 GitHub Soft Dark Theme
+  -- Terminal (ToggleTerm)
   ----------------------
   {
-    "projekt0n/github-nvim-theme",
-    name = "github-theme",
-    priority = 1000,
+    "akinsho/toggleterm.nvim",
+    version = "*",
     config = function()
-      require("github-theme").setup({
-        options = {
-          theme_style = "dark_dimmed",
-
-          styles = {
-            comments = "italic",
-            keywords = "bold",
-          },
-
-          darken = {
-            floats = true,
-            sidebars = {
-              enable = true,
-              list = {},
-            },
-          },
-
-          hide_end_of_buffer = true,
-          dim_inactive = false,
-          module_default = true,
+      require("toggleterm").setup({
+        size = 20,
+        open_mapping = [[<leader>t]], -- 使用 Space + t 开启/关闭
+        hide_numbers = true,
+        shade_terminals = false,
+        direction = 'float', -- 浮窗模式，也可以选 'horizontal' 或 'vertical'
+        close_on_exit = true,
+        float_opts = {
+          border = 'curved',
+          winblend = 3,
         },
       })
 
-      vim.cmd("colorscheme github_dark_dimmed")
+      -- 终端模式下的便捷映射
+      function _G.set_terminal_keymaps()
+        local opts = {buffer = 0}
+        vim.keymap.set('t', 'jk', [[<C-\><C-n>]], opts)
+        vim.keymap.set('t', '<leader>t', [[<C-\><C-n><cmd>ToggleTerm<CR>]], opts)
+      end
+      vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
+    end,
+  },
+
+  ----------------------
+  -- everforest theme
+  ----------------------
+  {
+    "neanias/everforest-nvim",
+    version = false,
+    priority = 1000,
+    config = function()
+      require("everforest").setup({
+        background = "soft", -- 关键：设置背景为柔和模式
+        ui_contrast = "low", -- 降低对比度，更接近 GitHub Soft
+        float_style = "bright", -- 浮窗稍微亮一点，方便区分
+        on_highlights = function(hl, palette)
+		  hl["@function"] = { fg = palette.blue, bold = true }
+          hl["@function.call"] = { fg = palette.blue }
+          hl["@method"] = { fg = palette.blue, bold = true }
+        end,
+      })
+      vim.cmd("colorscheme everforest")
     end,
   },
 
@@ -274,9 +327,3 @@ require("lazy").setup({
 
 })
 
--- ==========================================================================
--- 额外 UI 优化（护眼关键）
--- ==========================================================================
-
--- 去掉背景（如果你终端透明可以保留）
--- vim.cmd("highlight Normal guibg=NONE ctermbg=NONE")
