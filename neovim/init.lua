@@ -310,6 +310,46 @@ require("lazy").setup({
       })
     end
   },
+  
+  ----------------------
+  -- Go Debugging (DAP) depends on: go install github.com/go-delve/delve/cmd/dlv@latest
+  ----------------------
+  {
+    "mfussenegger/nvim-dap",
+    dependencies = {
+      "rcarriga/nvim-dap-ui",            -- Visual debugger UI
+      "leoluz/nvim-dap-go",             -- Go-specific DAP config
+      "nvim-neotest/nvim-nio",          -- Required for dap-ui
+      "theHamsta/nvim-dap-virtual-text", -- Shows variable values inline
+    },
+    config = function()
+      local dap = require("dap")
+      local dapui = require("dapui")
+
+      require("dap-go").setup()
+      require("dapui").setup()
+      require("nvim-dap-virtual-text").setup()
+
+      -- Automatically open/close UI when debugging starts/ends
+      dap.listeners.after.event_initialized["dapui_config"] = function() dapui.open() end
+      dap.listeners.before.event_terminated["dapui_config"] = function() dapui.close() end
+      dap.listeners.before.event_exited["dapui_config"] = function() dapui.close() end
+
+      -- Keymaps for Debugging
+      local opts = { noremap = true, silent = true }
+      vim.keymap.set("n", "<F5>", dap.continue, { desc = "Debug: Start/Continue" })
+      vim.keymap.set("n", "<F10>", dap.step_over, { desc = "Debug: Step Over" })
+      vim.keymap.set("n", "<F11>", dap.step_into, { desc = "Debug: Step Into" })
+      vim.keymap.set("n", "<F12>", dap.step_out, { desc = "Debug: Step Out" })
+      vim.keymap.set("n", "<leader>b", dap.toggle_breakpoint, { desc = "Toggle Breakpoint" })
+      vim.keymap.set("n", "<leader>B", function()
+        dap.set_breakpoint(vim.fn.input("Breakpoint condition: "))
+      end, { desc = "Conditional Breakpoint" })
+      
+      -- Close UI manually
+      vim.keymap.set("n", "<leader>dc", function() dapui.close() end, { desc = "Close Debug UI" })
+    end,
+  },
 
 })
 
