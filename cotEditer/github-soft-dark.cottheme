@@ -1,0 +1,61 @@
+// cd /Users/<username>/Library/Containers/com.coteditor.CotEditor/Data/Library/Application Support/CotEditor/Themes
+
+
+{
+  "attributes" : {
+    "color" : "#768390"
+  },
+  "background" : {
+    "color" : "#22272e"
+  },
+  "characters" : {
+    "color" : "#768390"
+  },
+  "commands" : {
+    "color" : "#6cb6ff"
+  },
+  "comments" : {
+    "color" : "#768390"
+  },
+  "highlight" : {
+    "color" : "#539bf5",
+    "usesSystemSetting" : false
+  },
+  "insertionPoint" : {
+    "color" : "#adbac7",
+    "usesSystemSetting" : false
+  },
+  "invisibles" : {
+    "color" : "#444c56"
+  },
+  "keywords" : {
+    "color" : "#f47067"
+  },
+  "lineHighlight" : {
+    "color" : "#2d333b"
+  },
+  "numbers" : {
+    "color" : "#6cb6ff"
+  },
+  "selection" : {
+    "color" : "#444c56",
+    "usesSystemSetting" : false
+  },
+  "strings" : {
+    "color" : "#8db963"
+  },
+  "text" : {
+    "color" : "#adbac7"
+  },
+  "types" : {
+    "color" : "#6cb6ff"
+  },
+  "values" : {
+    "color" : "#6cb6ff"
+  },
+  "variables" : {
+    "color" : "#e084a5"
+  }
+}
+
+
