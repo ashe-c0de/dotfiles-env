@@ -1,4 +1,4 @@
-# notepad $PROFILE
+# notepad $PROFILE （scoop install pwsh）
 # ls 系列
 function ll {
     Get-ChildItem | Select-Object Name, Length, LastWriteTime
